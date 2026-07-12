@@ -1,0 +1,11 @@
+# Personal study exercises — Introduction to LLMs in Python
+# Install into a virtual environment (see README.md).
+# Pin to the 4.x line: transformers 5.x removed the `summarization` and
+# `translation` pipeline tasks these exercises use (5.x errors with
+# "unknown task summarization"). 4.57 works with current torch/datasets.
+transformers>=4.40,<5
+datasets>=2.19
+torch>=2.2
+accelerate>=1.1.0      # required by TrainingArguments/Trainer (exercises 9, 10)
+sentencepiece>=0.2.0   # MarianMT tokenizer for translation (exercise 3)
+sacremoses>=0.1.0      # silences the MarianMT "Recommended: pip install sacremoses" notice

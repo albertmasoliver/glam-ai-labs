@@ -1,0 +1,11 @@
+# Local envs / caches
+.venv/
+__pycache__/
+
+# Training output (exercise 10's demo writes checkpoints here)
+out/
+llm-exercises/out/
+
+# Third-party source materials — never commit (copyright)
+*chapter*.pdf
+Ch*-Ex*.png
