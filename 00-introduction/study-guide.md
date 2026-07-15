@@ -187,60 +187,13 @@ def solve(text):
 
 ## 3 · The Transformer, in three shapes
 
-Every modern language model is a **Transformer**, stacked from two kinds of building block.
-Knowing how they differ explains what each model is good at — and why today's LLMs look the
-way they do.
+Every modern language model is a **Transformer**, built from two kinds of block: an
+**encoder** (bidirectional attention — each token sees the whole input, so it *understands*) and
+a **decoder** (causal attention — each token sees only what came before, which is what lets it
+*generate*). Keeping one or both gives three model shapes, each suited to different tasks. The
+figure below is the whole picture at a glance.
 
-At the heart of both blocks is **attention**: a mechanism that lets each token look at other
-tokens and pull in the information it needs to represent itself in context. The two blocks
-differ in *which* tokens a position is allowed to look at.
-
-- **The encoder** uses **bidirectional** attention: every token sees every other token, left
-  *and* right. Taking in the whole input at once, it builds a rich, context-aware
-  representation of each word — it can tell that "bank" means the river kind from the words
-  around it. An encoder does not produce text; it *understands* input.
-- **The decoder** uses **causal** (masked) attention: each token sees only the tokens
-  *before* it, never the future. That restriction is exactly what makes **generation**
-  possible — the model predicts the next token from the ones so far, appends it, and repeats
-  (this is *autoregression*). Letting it peek ahead would be cheating, since at generation
-  time the future tokens don't exist yet.
-
-From these two blocks come three model shapes:
-
-**Encoder-only (BERT family).** Just the encoder stack. It is trained by hiding random words
-and predicting them from *both* sides of context, so it produces contextual embeddings but no
-running text. Ideal for *understanding* tasks: text classification, sentiment, named-entity
-recognition, extractive QA (selecting the answer span). Exercises 4 and 5 use one.
-
-**Decoder-only (GPT family).** Just the decoder stack, trained on one simple objective —
-predict the next token over enormous amounts of text. Being autoregressive, it *generates*.
-This is the shape behind GPT, ChatGPT, Claude and Llama; because it scales so well on a single
-objective, it has become the default for large LLMs. Exercise 2 uses distilGPT-2.
-
-**Encoder-decoder (T5, BART, Marian).** Both stacks, joined by **cross-attention**: the
-encoder reads the input bidirectionally, and the decoder generates the output while attending
-both to its own previous tokens (causal) *and* to the encoder's representation of the input
-(cross-attention). That "read all of the input, then write the output" structure is a natural
-fit for **sequence-to-sequence** tasks — which is why exercises 1 (DistilBART, summarization)
-and 3 (Marian, translation) use this shape.
-
-**Checking a model in code:** `pipe.model.config.is_decoder` and
-`pipe.model.config.is_encoder_decoder` tell you which shape you loaded.
-
-**An important nuance.** These families describe how models are *built* and what small,
-dedicated models are optimised for — not a hard limit on tasks. A large **decoder-only** LLM
-(ChatGPT, Claude) happily summarizes and translates too: you put the document in the prompt
-and it generates the summary as a continuation, doing the "understanding" with causal
-attention over the prompt. Enough scale plus instruction-tuning lets a single decoder stack
-cover everything through prompting. So "summarization → encoder-decoder" is the *classic,
-efficient* choice for a focused small model (like the ones in these exercises), while a
-general chat LLM does it all with one decoder.
-
-| Shape | Attention | Trained to | Best at | Examples |
-|---|---|---|---|---|
-| Encoder-only | bidirectional | fill in masked words | understand: classify, NER, extractive QA | BERT |
-| Decoder-only | causal | predict the next token | generate; general-purpose LLMs | GPT-2, ChatGPT, Claude |
-| Encoder-decoder | bi + cross | map input → output | seq-to-seq: translate, summarize | T5, BART, Marian |
+![The Transformer in three shapes — encoder vs decoder attention and the encoder-only, decoder-only and encoder-decoder families](assets/transformer-three-shapes.png)
 
 ### Exercises
 
