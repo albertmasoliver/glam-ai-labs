@@ -461,7 +461,7 @@ def solve():
 **Is the model being trained in this exercise? It depends what you run:**
 
 - **`solve()`** — the part you complete — only **builds** the `Trainer` object. **No training.**
-- **Running the file** (`python exercises/ex10_build_trainer.py`) builds it *and* then calls `trainer.train()` on a tiny dataset for two steps — **yes, a real mini-train** you can watch (a loss is printed).
+- **Running the file** (`python exercises/ex10_build_trainer.py`) builds it *and* then calls `trainer.train()` on a tiny dataset for two steps — **yes, a real mini-train** you can watch (a loss is printed) — and then **saves the model** with `save_pretrained` so **exercise 11 can load it**.
 - **`python check.py 10`** only verifies the wiring. **No training.**
 
 So the *exercise itself* just assembles the Trainer; the bundled *demo* adds a two-step train so the loop isn't abstract. And what `trainer.train()` actually does, each step, is: pull a **batch** from the `train_dataset` → run it **through the model** → compute the **loss** (how wrong it is) → **backpropagate** to get the gradients (which way each weight should move) → **update the weights** a little (step size = the learning rate) → **evaluate** when `eval_strategy` says to → **save checkpoints** to `output_dir`.
@@ -527,9 +527,12 @@ human-readable label.
 only read a prediction. Wrapping the forward pass in `with torch.no_grad():` makes it faster and
 use less memory.
 
-**Why the model matters.** This is the same SST-2 fine-tuned DistilBERT as ex5. *Because* it's
-fine-tuned, its logits are meaningful and `argmax` gives a real POSITIVE/NEGATIVE; the untrained
-head from ex6 would give noise.
+**Which model?** It loads **the model you fine-tuned and saved in ex10** (with
+`save_pretrained`) via `from_pretrained` — the realistic train → save → load → predict flow.
+Heads-up: since ex10 only fine-tuned for **2 steps on a toy dataset**, that model has barely
+learned, so the predicted label **won't be reliable**. This exercise is about the *mechanics*
+(logits → argmax → label), not accuracy — a real project would train properly, or start from an
+already-fine-tuned model.
 
 **The full flow:**
 
@@ -562,14 +565,16 @@ happens during inference with a Transformer.
 Complete this in `exercises/ex11_predict.py`:
 
 ```python
+import pathlib
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
 def solve(text):
-    name = "distilbert-base-uncased-finetuned-sst-2-english"
-    tok = AutoTokenizer.from_pretrained(name)
-    model = AutoModelForSequenceClassification.from_pretrained(name)
+    # Load the model YOU fine-tuned and saved in exercise 10:
+    model_dir = pathlib.Path(__file__).resolve().parent.parent / "finetuned-demo"
+    tok = AutoTokenizer.from_pretrained(model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
     inp = tok(text, return_tensors="pt", padding=True, truncation=True)
     with torch.no_grad():
         logits = model(**inp).logits

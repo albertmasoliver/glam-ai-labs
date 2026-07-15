@@ -70,6 +70,29 @@ def fx_dataset():
     return d.map(lambda b: tok(b["text"], padding=True, truncation=True, max_length=16),
                  batched=True)
 
+@lru_cache(maxsize=None)
+def fx_finetuned_dir():
+    """Ensure exercise 10's saved model exists (so exercise 11 can load it), creating a tiny
+    fine-tuned model here if it isn't there yet."""
+    d = HERE / "finetuned-demo"
+    if (d / "config.json").exists():
+        return d
+    from transformers import (AutoModelForSequenceClassification, Trainer, TrainingArguments)
+    from datasets import Dataset
+    tok = fx_tokenizer()
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "distilbert-base-uncased", num_labels=2,
+        id2label={0: "NEGATIVE", 1: "POSITIVE"}, label2id={"NEGATIVE": 0, "POSITIVE": 1})
+    data = Dataset.from_dict(
+        {"text": ["a great day", "a terrible day", "loved it", "hated it"], "label": [1, 0, 1, 0]}
+    ).map(lambda b: tok(b["text"], padding="max_length", truncation=True, max_length=16),
+          batched=True)
+    args = TrainingArguments(output_dir=str(HERE / "out"), max_steps=2,
+                             per_device_train_batch_size=2, logging_steps=1, report_to=[])
+    Trainer(model=model, args=args, train_dataset=data, eval_dataset=data, tokenizer=tok).train()
+    model.save_pretrained(d); tok.save_pretrained(d)
+    return d
+
 # ---- one checker per exercise ----
 # Each checker runs the exercise's OWN `SAMPLE` where it takes a text input, so what the
 # verifier runs is exactly what `python <file>` prints. It then asserts a *property* of the
@@ -137,7 +160,8 @@ def c11(m):  # wire the Trainer — fixtures
     assert isinstance(t, Trainer) and t.args is args, "expected a Trainer wired to the args"
     return f"{type(t).__name__} (model + args + datasets wired)"
 
-def c12(m):  # predict from logits
+def c12(m):  # predict from logits (loads the model saved by exercise 10)
+    fx_finetuned_dir()   # make sure exercise 10's saved model is there to load
     label = m.solve(m.SAMPLE)
     assert isinstance(label, str) and label.upper() in {"POSITIVE", "NEGATIVE"}, \
         f"expected POSITIVE or NEGATIVE, got {label!r}"

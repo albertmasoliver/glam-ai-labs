@@ -276,14 +276,15 @@ def solve(model, args, train_ds, eval_ds, tokenizer):
 **Answer** — `solutions/ex11_predict.py`:
 
 ```python
+import pathlib
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
 def solve(text):
-    name = "distilbert-base-uncased-finetuned-sst-2-english"
-    tok = AutoTokenizer.from_pretrained(name)
-    model = AutoModelForSequenceClassification.from_pretrained(name)
+    model_dir = pathlib.Path(__file__).resolve().parent.parent / "finetuned-demo"
+    tok = AutoTokenizer.from_pretrained(model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
     inp = tok(text, return_tensors="pt", padding=True, truncation=True)
     with torch.no_grad():
         logits = model(**inp).logits

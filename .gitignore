@@ -2,8 +2,9 @@
 .venv/
 __pycache__/
 
-# Training output (exercise 10's demo writes checkpoints here)
+# Training output + the saved model exercise 10 writes / exercise 11 loads
 out/
+finetuned-demo/
 
 # Third-party source materials — never commit (copyright)
 *chapter*.pdf
