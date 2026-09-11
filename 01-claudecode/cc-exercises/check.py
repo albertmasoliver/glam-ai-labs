@@ -20,6 +20,7 @@ Statuses
 
 import argparse
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -71,6 +72,11 @@ def frontmatter(path):
     return meta, parts[2], raw
 
 
+def _state_files(home):
+    """Every file a run left behind in the throwaway HOME."""
+    return [p for p in home.rglob("*") if p.is_file()]
+
+
 @contextlib.contextmanager
 def sandbox_home():
     """A throwaway HOME, so a lab's state file cannot land in the real one."""
@@ -90,83 +96,151 @@ def lab01(_d):
 
 
 # --------------------------------------------------------------------------
-# lab 02 -- persistence
+# lab 02 -- the five jobs
 # --------------------------------------------------------------------------
 
-def _trainer_run(script, home, presses):
-    return run([sys.executable, str(script)], cwd=script.parent,
-               env={"HOME": str(home)}, stdin="\n" * presses)
+FROZEN_REASON = {
+    "notes/formatting.py": "presentation only -- no rule belongs here",
+    "notes/legacy_export.py": "ugly on purpose; nothing asked you to fix it",
+    "tests/test_web.py": "a red test goes green two ways, and only one is a fix",
+}
+
+JOB_PATTERNS = {
+    "the symptom, in checkable terms":
+        r"\b(400|200|test_create_rejects_empty_title)\b",
+    "the desired behaviour, as its own sentence":
+        r"\b(must|should|has to|is rejected|are rejected|rejects?|required|reject)\b",
+    "the local convention, by pointing at it":
+        r"(validation\.py|validator|pattern|convention|same way|style)",
+    "the boundary":
+        r"(don'?t|do not|never|only|leave|without|untouched|unrelated|keep .* as)",
+}
 
 
-def _first_line_number(stdout):
-    m = re.search(r"Line (\d+) of \d+", stdout)
-    return int(m.group(1)) if m else None
+def _prompt_jobs(text):
+    """Which of the five jobs the prompt appears to do. A grep, not a judge."""
+    low = text.lower()
+    found, missing = [], []
+    for job, pat in JOB_PATTERNS.items():
+        (found if re.search(pat, low, re.I) else missing).append(job)
+    return found, missing
 
 
-def _state_files(home):
-    return [p for p in home.rglob("*") if p.is_file()]
+def _real_paths(text, root):
+    hits = set()
+    for m in re.findall(r"[\w./-]+\.py", text):
+        if (root / m.lstrip("./")).exists():
+            hits.add(m.lstrip("./"))
+    return hits
 
 
 def lab02(d):
-    script = d / "trainer.py"
-    if not script.exists():
-        return TODO, "trainer.py is missing.", []
+    if not (d / "notes").is_dir():
+        return TODO, "The notes fixture is not here.", []
 
     notes, bad = [], []
-    with sandbox_home() as home:
-        first = _trainer_run(script, home, 3)
-        if first.returncode != 0:
-            return FAIL, "trainer.py exited non-zero.", [first.stderr.strip()[:400]]
-        saved = _state_files(home)
-        if not saved:
-            return TODO, "Nothing was written outside the process.", [
-                "After three Enters and a quit, HOME held no new file.",
-                "Persistence is the lab: pick a location and write the line index there.",
-            ]
-        notes.append(f"state written to ~/{saved[0].relative_to(home)}")
 
-        second = _trainer_run(script, home, 0)
-        n = _first_line_number(second.stdout)
-        if n != 4:
-            bad.append(f"after 3 advances and a restart it resumed at line {n}, expected 4")
+    # ---- 1. the prompt ---------------------------------------------------
+    pf = d / "PROMPT.md"
+    if not pf.exists():
+        return TODO, "No PROMPT.md yet.", [
+            "Write the request before you send it. The lab is the prompt, not the fix.",
+        ]
+    ptext = pf.read_text()
+    if "<the symptom" in ptext or "<the boundary" in ptext:
+        return TODO, "PROMPT.md is still the template.", [
+            "Replace the placeholders with the request you are actually going to send.",
+        ]
+
+    found, missing = _prompt_jobs(ptext)
+    paths = _real_paths(ptext, d)
+    if not paths:
+        missing.append("the likely location (a real path in this repo)")
+    else:
+        found.append("the likely location")
+        notes.append("points at " + ", ".join(sorted(paths)))
+    if missing:
+        bad.append("PROMPT.md is missing " + "; ".join(missing))
+    else:
+        notes.append(f"PROMPT.md carries all five jobs ({len(ptext.split())} words)")
+
+    # ---- 2. the visible test ---------------------------------------------
+    r = run([sys.executable, "-m", "pytest", "-q"], cwd=d)
+    if r.returncode != 0:
+        tail = (r.stdout or r.stderr).strip().splitlines()[-4:]
+        if not bad and not any("passed" in l for l in tail):
+            return TODO, "The failing test still fails -- nothing has been fixed yet.", tail
+        bad.append("the visible tests do not pass")
+        bad.extend(tail)
+    else:
+        m = re.search(r"(\d+) passed", r.stdout)
+        notes.append(f"{m.group(1) if m else '?'} visible tests pass")
+
+    # ---- 3. did the reason transfer? -------------------------------------
+    sys.path.insert(0, str(d))
+    for mod in [m for m in list(sys.modules) if m == "notes" or m.startswith("notes.")]:
+        del sys.modules[mod]
+    transferred = literal = None
+    try:
+        from notes.store import Store
+        from notes.web import create_note, update_note
+        s = Store()
+        create_note(s, {"title": "Groceries", "body": "milk"})
+        transferred = update_note(s, 1, {"title": ""})[0] == 400
+        literal = create_note(s, {"title": "   ", "body": "x"})[0] == 400
+        s2 = Store()
+        create_note(s2, {"title": "Groceries", "body": "milk"})
+        still_ok = (update_note(s2, 1, {"body": "eggs"})[0] == 200
+                    and update_note(s2, 99, {"body": "x"})[0] == 404)
+    except Exception as e:
+        bad.append(f"the app no longer imports or runs: {type(e).__name__}: {e}")
+        still_ok = False
+    finally:
+        sys.path.remove(str(d))
+
+    if transferred:
+        notes.append("transfer: update_note rejects a blank title too -- your reason carried")
+    elif transferred is False:
+        bad.append("transfer: update_note STILL accepts an empty title. It has the same "
+                   "defect and nothing pointed at it -- your prompt gave an instruction "
+                   "where it needed a reason. Try naming why: every path that accepts "
+                   "user input is checked the same way")
+    if literal is False:
+        bad.append('literalism: a title of "   " is still accepted. You said empty and got '
+                   "exactly empty. Scope is something you state, not something it infers")
+    elif literal:
+        notes.append('literalism: "   " is rejected too, not just ""')
+    if transferred is not None and not still_ok:
+        bad.append("a body-only update or a missing note no longer behaves -- "
+                   "the fix reached further than the rule did")
+
+    # ---- 4. did the fence hold? ------------------------------------------
+    baseline = d / ".baseline.json"
+    if not baseline.exists():
+        notes.append("no .baseline.json -- cannot check the frozen files")
+    else:
+        try:
+            frozen = json.loads(baseline.read_text())["frozen"]
+        except Exception as e:
+            bad.append(f".baseline.json is unreadable: {e}")
+            frozen = {}
+        moved = []
+        for rel, want in frozen.items():
+            f = d / rel
+            if not f.exists():
+                moved.append(f"{rel} was deleted")
+            elif hashlib.sha256(f.read_bytes()).hexdigest() != want:
+                moved.append(f"{rel} was modified -- {FROZEN_REASON.get(rel, 'frozen')}")
+        if moved:
+            bad.append("the fence did not hold: " + "; ".join(moved) +
+                       ". Nothing asked you to touch those. Either your prompt had no "
+                       "boundary clause, or it had one and it was too vague to hold")
         else:
-            notes.append("resumes where you left off")
-
-        for label, payload in [
-            ("corrupt file", "{not json at all"),
-            ("non-numeric index", None),
-            ("out-of-range index", None),
-        ]:
-            target = saved[0]
-            if payload is None:
-                value = "seven" if "non-numeric" in label else 999
-                try:
-                    state = json.loads(target.read_text())
-                except Exception:
-                    state = None
-                if isinstance(state, dict):
-                    state = {k: (value if isinstance(v, int) and not isinstance(v, bool)
-                                 else v) for k, v in state.items()}
-                    target.write_text(json.dumps(state))
-                else:
-                    target.write_text(json.dumps(value))
-            else:
-                target.write_text(payload)
-
-            r = _trainer_run(script, home, 0)
-            if r.returncode != 0:
-                bad.append(f"{label}: crashed instead of falling back "
-                           f"({r.stderr.strip().splitlines()[-1][:120] if r.stderr.strip() else 'no stderr'})")
-                continue
-            n = _first_line_number(r.stdout)
-            if n != 1:
-                bad.append(f"{label}: started at line {n}, expected a fallback to line 1")
-            else:
-                notes.append(f"{label} falls back to line 1")
+            notes.append(f"{len(frozen)} frozen files unchanged")
 
     if bad:
-        return FAIL, "Persistence is there, but it does not survive bad state.", bad
-    return PASS, "Resumes after a restart, and bad state falls back to line 1.", notes
+        return FAIL, "The fix landed. Something else did not.", notes + bad
+    return PASS, "Fixed, transferred, and stayed inside the fence.", notes
 
 
 # --------------------------------------------------------------------------
@@ -578,7 +652,7 @@ def lab12(d):
 
 LABS = [
     ("lab01_first_contact", "first contact", lab01),
-    ("lab02_persistence", "persistence", lab02),
+    ("lab02_five_jobs", "the five jobs", lab02),
     ("lab03_session", "driving the session", lab03),
     ("lab04_cabin", "the cabin", lab04),
     ("lab05_memory", "project memory", lab05),

@@ -67,7 +67,7 @@ If the first command passes, your environment is good.
 | | Lab | Verified by |
 |---|---|---|
 | 01 | first contact | MANUAL |
-| 02 | get what you asked for | resumes after restart; bad state falls back |
+| 02 | the five jobs | the fix transfers to the handler nobody named; frozen files unchanged |
 | 03 | driving the session | MANUAL |
 | 04 | the cabin | package imports, tests pass without touching disk, storage injected |
 | 05 | project memory | `CLAUDE.md` short and complete; one scoped rule parses |

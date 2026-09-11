@@ -58,8 +58,7 @@ whether the thing in front of you understood the repo before it starts rewriting
 **Say how big the first version should be.** Left unconstrained, a request for "a
 small app to practise memorising a poem" comes back with argument parsing, a config
 file and a package layout. Name the scale: *one file, standard library only, no
-packaging, no argument parsing.* You can always grow it. The lab's prompt, which is
-this course's own, is in `exercises/lab02_persistence/README.md`.
+packaging, no argument parsing.* You can always grow it.
 
 **And decline the offer at the end.** It will propose next steps. Most of them are
 real. Accepting all of them is how a doghouse becomes an unmaintained cabin in
@@ -69,32 +68,81 @@ forty minutes.
 
 ## 2. Getting what you asked for
 
-**Lab 02.** Add persistence to the trainer — badly first, then precisely.
+**Lab 02.** One failing test, one prompt, and a defect that appears twice.
 
 The difference between a vague request and a precise one is not politeness. It is
 that a vague request leaves the decisions to the model, and you will not be told
 which decisions those were.
 
-Four things carry almost all the weight:
+Treat a prompt as a message to a colleague about to do the work: enough context to
+decide well, a picture of what success looks like, the constraints they have to
+respect. That framing also says what to leave out — you would not tell a colleague
+which variable names to use.
 
-| Put this in | Because |
+**Five jobs, and a good prompt does all five in about six lines:**
+
+| Job | Because |
 |---|---|
-| **The artifact, by name** — a path, a key, a filename | It makes the result inspectable. "Save my place" is checkable only by running the app; "write `line_index` to `~/.lyrics-trainer.json`" is checkable with `cat` |
-| **A success condition** | Otherwise "done" is its opinion. *Quit after a few lines, run again, resume at the same line* is a test you can perform |
-| **A structural fence** | *Keep the single-file structure, don't extract modules, don't add a dependency.* Without it you get the refactor you did not ask for, mixed into the change you did |
-| **A clarification pass** | Three lines at the end — *do you have questions, is there anything I'm missing, are there options I've neglected* — and you get the ambiguities before the edit instead of after |
+| **The symptom**, in checkable terms | Not "validation is broken" — a status code you can assert on |
+| **The desired behaviour**, as its own sentence | A separate claim from the symptom. Both are needed |
+| **The likely location** | A real path. Saves a search, and a search is where the tokens go |
+| **The local convention**, by pointing at it | Cheaper and more exact than describing it |
+| **The boundary** | One line, and it is the difference between a reviewable diff and a surprising one |
 
-The clarification pass is the cheapest thing in this guide. It costs one turn and it
-routinely surfaces a decision you did not know you were making. Kousen's ch. 3 is
-built around this comparison; those three lines are his.
+The longer prompt is also the **cheaper** one to run: a vague request sends the agent
+through rounds of discovery to work out what you meant, and those rounds cost more than
+the sentence you did not write. Kousen's ch. 3 runs this as a before/after pair — a
+two-word request against a six-line one. Both are his; the lab asks you to write yours.
 
-**Then push back on one decision without asking for a change.** *"Why not extract a
-`save_state()` function?"* is a question, and you get a defence or a concession —
-either is information. *"Extract a `save_state()` function"* is an instruction, and
-you get an edit and learn nothing. Keep the two separate; people mix them constantly
-and then complain the tool is too agreeable.
+### The sentence that carries the module
 
----
+The same constraint, three ways:
+
+```text
+Don't put validation in the handler
+Put validation in a validator function
+Put validation in a validator function so every path that accepts user
+input is checked the same way
+```
+
+The first can be obeyed while completely missing the point. The second names a target.
+The third is the one to write, because **the agent generalises from the reason** — it
+makes consistent choices in places your prompt never mentioned.
+
+**A reason is a rule that transfers. An instruction is a rule that does not.**
+
+Lab 02 measures that instead of asserting it. The app has the same defect in two
+handlers; the failing test covers one, and nothing anywhere mentions the other. A prompt
+that names the handler fixes one. A prompt that names *why* tends to fix both — and the
+checker reports which one you wrote.
+
+Two more things the lab measures, because they fail independently:
+
+- **Literalism.** Recent models take instructions literally and do not carry one case to
+  the next. Say *empty* and you get exactly empty; a whitespace-only title still walks
+  through. Scope is something you state, not something you hope it infers.
+- **The fence.** The fixture ships a genuinely ugly module with a `TODO` on it that
+  nothing asked you to fix, and a test file that a red-to-green shortcut would love to
+  edit. Both are frozen and checked by hash. A boundary clause that is too vague to hold
+  is one you find out about here rather than in review.
+
+### Ask before you request
+
+Two verbs, and most people request too early.
+
+| Verb | Goal |
+|---|---|
+| **Ask** | *"How does this app validate input today?"* — understanding |
+| **Request** | *"Add title validation to both handlers."* — action |
+
+Keep them in separate prompts. Ask it to explain and change in one shot and you get a
+confident edit built on an explanation you never checked — and if the explanation was
+wrong, so is the change.
+
+**Then push back on one decision without asking for a change.** *"Why did the check go in
+the handler rather than the validator?"* is a question, and you get a defence or a
+concession — either is information. Phrased as an instruction, you get an edit and learn
+nothing. People mix the two constantly and then complain the tool is too agreeable.
 
 ## 3. Driving the session
 
