@@ -1,6 +1,9 @@
 # Local envs / caches
 .venv/
 __pycache__/
+.pytest_cache/
+.coverage
+.coverage.json
 
 # Training output + the saved model exercise 10 writes / exercise 11 loads
 out/

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather in {{ city }}</title>
+<style>
+  body { font: 18px/1.5 system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  td, th { text-align: left; padding: 0.35rem 0.6rem; border-bottom: 1px solid #ddd; }
+</style>
+</head>
+<body>
+  <h1>{{ city }}</h1>
+  <p>
+    Now: {{ data.current.temp }} &deg;C,
+    {{ data.current.weather[0].description }}
+  </p>
+  <table>
+    <tr><th>Day</th><th>Min</th><th>Max</th><th>Conditions</th></tr>
+    {% for day in data.daily %}
+    <tr>
+      <td>+{{ loop.index0 }}</td>
+      <td>{{ day.temp.min }} &deg;C</td>
+      <td>{{ day.temp.max }} &deg;C</td>
+      <td>{{ day.weather[0].description }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><a href="/">Another city</a></p>
+</body>
+</html>
