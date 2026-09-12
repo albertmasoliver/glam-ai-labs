@@ -84,5 +84,4 @@ Checks 3 and 4 live in `check.py`, and you can read it. Reading it is not the ex
 ## One honest caveat
 
 Check 3 is not deterministic. A weak prompt can reach `update_note` by luck, and a good one
-can miss it on a bad day. Run it twice before you conclude anything — which is the same
-lesson lab 04 makes with nine runs instead of two.
+can miss it on a bad day. Run it twice before you conclude anything.

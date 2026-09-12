@@ -1,6 +1,6 @@
 # Lab 05 — project memory
 
-The cabin from lab 04, with no `CLAUDE.md`. Every session starts by rediscovering
+A small trainer app with a tested core, and no `CLAUDE.md`. Every session starts by rediscovering
 that storage is injected, that there are no dependencies, that `cli.py` holds no
 rules — and half the time it rediscovers it wrong.
 

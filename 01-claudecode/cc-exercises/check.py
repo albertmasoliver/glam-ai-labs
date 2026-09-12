@@ -19,13 +19,10 @@ Statuses
 """
 
 import argparse
-import contextlib
 import hashlib
-import io
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -70,18 +67,6 @@ def frontmatter(path):
     if not isinstance(meta, dict):
         raise ValueError("frontmatter did not parse to a mapping")
     return meta, parts[2], raw
-
-
-def _state_files(home):
-    """Every file a run left behind in the throwaway HOME."""
-    return [p for p in home.rglob("*") if p.is_file()]
-
-
-@contextlib.contextmanager
-def sandbox_home():
-    """A throwaway HOME, so a lab's state file cannot land in the real one."""
-    with tempfile.TemporaryDirectory() as d:
-        yield Path(d)
 
 
 # --------------------------------------------------------------------------
@@ -256,84 +241,147 @@ def lab03(_d):
 
 
 # --------------------------------------------------------------------------
-# lab 04 -- the cabin
+# lab 04 -- auditing the evidence
 # --------------------------------------------------------------------------
 
-class _FakeStorage:
-    def __init__(self, state):
-        self._state = state
-        self.written = None
+def _blank_url_assertion(path):
+    """The assertion in the test written to catch the bug, as source text."""
+    import ast
+    try:
+        tree = ast.parse(path.read_text())
+    except SyntaxError as e:
+        return None, f"tests/test_web.py does not parse: {e}"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and "blank_url" in node.name:
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Assert):
+                    return sub.test, None
+    return None, None
 
-    def read(self):
-        if isinstance(self._state, Exception):
-            raise self._state
-        return self._state
 
-    def write(self, state):
-        self.written = state
+def _is_strict_400(test):
+    """True only for `something == 400`, not `in (200, 400)` and not `!= 500`."""
+    import ast
+    return (isinstance(test, ast.Compare)
+            and len(test.ops) == 1
+            and isinstance(test.ops[0], ast.Eq)
+            and isinstance(test.comparators[0], ast.Constant)
+            and test.comparators[0].value == 400)
+
+
+def _audit_findings(text):
+    """Findings that carry evidence, and findings that are just a claim."""
+    blocks = re.split(r"^##\s+Finding\b", text, flags=re.M)[1:]
+    withev, bare = [], []
+    for i, b in enumerate(blocks, 1):
+        m = re.search(r"\*\*Evidence:?\*\*(.*?)(?=\n\*\*|\Z)", b, re.S | re.I)
+        ev = (m.group(1) if m else "")
+        ev = re.sub(r"<[^>]*>", "", ev).strip()
+        claim = re.search(r"\*\*Claim:?\*\*(.*?)(?=\n\*\*|\Z)", b, re.S | re.I)
+        claim = (claim.group(1).strip() if claim else "")
+        (withev if (ev and claim) else bare).append((i, ev))
+    return withev, bare
 
 
 def lab04(d):
-    pkg = d / "trainer"
-    if not pkg.is_dir() or not (pkg / "__init__.py").exists():
-        return TODO, "There is no trainer/ package yet.", [
-            "The lab is the split: one file becomes modules with a seam you can test.",
-        ]
-    if not any(d.glob("tests/test_*.py")):
-        return TODO, "The package is there but tests/ is empty.", []
+    if not (d / "shortener").is_dir():
+        return TODO, "The shortener fixture is not here.", []
 
     notes, bad = [], []
 
-    with sandbox_home() as home:
-        r = run([sys.executable, "-m", "pytest", "-q"], cwd=d, env={"HOME": str(home)})
-        if r.returncode != 0:
-            tail = (r.stdout or r.stderr).strip().splitlines()[-8:]
-            return FAIL, "The tests do not pass.", tail
-        m = re.search(r"(\d+) passed", r.stdout)
-        notes.append(f"{m.group(1) if m else '?'} tests pass")
-        leftovers = _state_files(home)
-        if leftovers:
-            bad.append("the test run wrote to HOME (" +
-                       ", ".join(str(p.relative_to(home)) for p in leftovers[:3]) +
-                       ") -- unit tests should inject a fake, not touch the disk")
+    # ---- 1. the audit ----------------------------------------------------
+    af = d / "AUDIT.md"
+    if not af.exists():
+        return TODO, "No AUDIT.md yet.", [
+            "Read the diff before you change anything. The audit is the lab.",
+        ]
+    atext = af.read_text()
+    if "<a file:line" in atext or re.search(r"\*\*Claim:\*\*\s*\n\s*\n", atext):
+        return TODO, "AUDIT.md is still the template.", [
+            "Three findings, each with a claim and evidence you could hand to someone else.",
+        ]
+    withev, bare = _audit_findings(atext)
+    if len(withev) < 3:
+        bad.append(f"AUDIT.md has {len(withev)} findings with evidence "
+                   f"({len(bare)} claim-only). Three are findable, and a finding "
+                   "without evidence is an opinion")
+    else:
+        cited = {m.lstrip("./") for ev in (e for _, e in withev)
+                 for m in re.findall(r"[\w./-]+\.py", ev)}
+        real = {c for c in cited if (d / c).exists()}
+        if not real:
+            bad.append("AUDIT.md cites no file that exists in this repo -- "
+                       "evidence means a path, a command and its output, or a commit")
+        else:
+            notes.append(f"{len(withev)} findings with evidence, citing "
+                         + ", ".join(sorted(real)))
 
+    # ---- 2. is the verifier a verifier again? ----------------------------
+    tf = d / "tests" / "test_web.py"
+    assertion, err = _blank_url_assertion(tf) if tf.exists() else (None, "tests/test_web.py is gone")
+    if err:
+        bad.append(err)
+    elif assertion is None:
+        bad.append("no test for a blank url survives -- the one test written to catch "
+                   "this bug should still be there, and should still be strict")
+    elif not _is_strict_400(assertion):
+        bad.append("the blank-url assertion still accepts more than one answer. "
+                   "Behaviour is not the problem here -- evidence is: a test that "
+                   "passes whether or not the bug is present will not catch the next "
+                   "regression either")
+    else:
+        notes.append("the blank-url test asserts == 400 again")
+
+    # ---- 3. behaviour, which cannot be argued with -----------------------
     sys.path.insert(0, str(d))
-    for mod in [m for m in list(sys.modules) if m == "trainer" or m.startswith("trainer.")]:
+    for mod in [m for m in list(sys.modules) if m == "shortener" or m.startswith("shortener.")]:
         del sys.modules[mod]
     try:
-        from trainer import storage as st
+        from shortener.store import Store
+        from shortener.web import create_link
+        from shortener.rendering import truncate
+
+        blanks, nonstrings, crashed = [], [], []
+        for v in ("", " ", "   ", "\t\n"):
+            if create_link(Store(), {"url": v})[0] != 400:
+                blanks.append(repr(v))
+        for v in (123, None, [], {}, True):
+            try:
+                if create_link(Store(), {"url": v})[0] != 400:
+                    nonstrings.append(repr(v))
+            except Exception as e:
+                crashed.append(f"{v!r} -> {type(e).__name__}")
+        valid = create_link(Store(), {"url": "https://example.com/"})[0] == 200
+        trunc = len(truncate("x" * 50, 40))
     except Exception as e:
         sys.path.remove(str(d))
-        return FAIL, "trainer.storage does not import.", [f"{type(e).__name__}: {e}"]
+        return FAIL, "The app no longer imports.", notes + [f"{type(e).__name__}: {e}"]
+    sys.path.remove(str(d))
 
-    try:
-        missing = [n for n in ("load_saved_index", "save_index") if not hasattr(st, n)]
-        if missing:
-            bad.append("trainer.storage is missing " + ", ".join(missing) +
-                       " -- the brief names this contract so the seam is checkable")
-        else:
-            fake = _FakeStorage({"line_index": 2})
-            if st.load_saved_index(fake, LINE_COUNT) != 2:
-                bad.append("load_saved_index(storage, line_count) did not return the saved index")
-            else:
-                notes.append("storage is injected: a fake object is enough")
-            for label, state in [("a broken storage", RuntimeError("disk on fire")),
-                                 ("garbage state", "not a dict"),
-                                 ("an out-of-range index", {"line_index": 999})]:
-                if st.load_saved_index(_FakeStorage(state), LINE_COUNT) != 0:
-                    bad.append(f"{label} did not fall back to 0")
-            fake = _FakeStorage({})
-            st.save_index(fake, 5)
-            if not isinstance(fake.written, dict) or 5 not in fake.written.values():
-                bad.append("save_index(storage, index) did not hand the index to storage.write")
-            else:
-                notes.append("bad state falls back to 0; save_index writes through the seam")
-    finally:
-        sys.path.remove(str(d))
+    if crashed:
+        bad.append("create_link still crashes on " + ", ".join(crashed) +
+                   ". A payload is untrusted input, and the guard reads as defensive "
+                   "without being it")
+    elif nonstrings:
+        bad.append("create_link accepts a non-string url: " + ", ".join(nonstrings))
+    else:
+        notes.append("non-string urls are rejected with a 400, not a stack trace")
+    if blanks:
+        bad.append("blank urls still get through: " + ", ".join(blanks))
+    if not valid:
+        bad.append("a valid url is now rejected -- the fix reached past the rule")
+    elif not blanks:
+        notes.append("blank rejected, valid accepted")
+    if trunc != 40:
+        bad.append(f"truncate('x'*50, 40) returns {trunc} characters, and its docstring "
+                   'says "at most `limit` characters, ellipsis included". The commit '
+                   'called this "tidied up while I was in there"')
+    else:
+        notes.append("truncate honours its own docstring again")
 
     if bad:
-        return FAIL, "The package is there, but the seam is not clean.", bad
-    return PASS, "Package imports, tests pass, storage is injected.", notes
+        return FAIL, "The suite is green. The evidence still is not.", notes + bad
+    return PASS, "Audited, and every broken link in the chain repaired.", notes
 
 
 # --------------------------------------------------------------------------
@@ -654,7 +702,7 @@ LABS = [
     ("lab01_first_contact", "first contact", lab01),
     ("lab02_five_jobs", "the five jobs", lab02),
     ("lab03_session", "driving the session", lab03),
-    ("lab04_cabin", "the cabin", lab04),
+    ("lab04_audit", "auditing the evidence", lab04),
     ("lab05_memory", "project memory", lab05),
     ("lab06_permissions", "permissions", lab06),
     ("lab07_skills", "skills and hooks", lab07),

@@ -181,7 +181,7 @@ cheapest defence against a confident plan that is merely the first plan.
 
 ## 4. Tests force the design — sometimes
 
-**Lab 04.** Ask for tests on a single-file app. Do not ask for a refactor.
+**Lab 04.** A bug is already fixed and the suite is already green. Audit it.
 
 Here is the claim, stated so you can disagree with it:
 
@@ -234,10 +234,48 @@ of nine. **Write your invariants knowing they will be obeyed literally**, and pa
 every one with a licence to object: *if this constraint makes the task awkward, say
 so instead of working around it.*
 
-**What you actually want here** is the seam: storage passed in as a parameter, so a
-test hands it a fake with `read()` and `write()` and never touches a disk. If the
-proposal is to monkeypatch `open` instead, that is the wrong half of the fork — it
-keeps the tangle and adds machinery to work around it.
+### So stop treating a green suite as an answer
+
+Put those three together and the conclusion is uncomfortable: **the suite is the
+weakest link in the chain, and it is the one everybody reads.** The chain that
+actually justifies "this is fixed" runs:
+
+```text
+failure observed → root cause → minimal change → evidence → invariants → challenge
+```
+
+A green suite occupies one link. On its own it tells you that some assertions passed —
+not that they were the right assertions, not that they were the *same* assertions as
+yesterday, and not that nothing else moved.
+
+**Lab 04 is that audit, and you do not write the fix.** You are handed a repository
+where an agent already fixed the bug: two commits, a green suite, an honest commit
+message, a three-line diff. Three things in it do not survive contact with evidence,
+and one of them is invisible from behaviour alone — the test written to catch the bug
+was widened to accept both answers, so it now passes whether the bug is present or not.
+The code happens to be correct today, which is exactly why nobody looks, and exactly
+why the next regression will ship.
+
+The six moves, in order, and the order matters because five of them happen **before**
+you let it edit anything:
+
+1. **Failure observed.** Does the original test actually fail on the pre-fix code? No
+   red, no meaningful green.
+2. **Root cause.** Ask for the code path, not a summary. A diagnosis you cannot trace
+   in the file is a guess.
+3. **The change.** Is it minimal? What *other* inputs does the new condition affect?
+   Is there a validator that should have been reused?
+4. **What else changed.** Read the whole diff. Production, tests, and everything else,
+   separately. *"While I was in there"* is where unreviewed changes live.
+5. **Confirm** — and for every claim, **show the supporting evidence.** That last
+   clause is the whole discipline. You do not want conclusions; you want claims plus
+   what backs them.
+6. **Challenge.** Ask it to argue its own fix is wrong. What did it assume about the
+   input? In the lab, this is the step that finds the crash.
+
+**The agent operates the tools. You audit the evidence.** It can read the repo, form
+hypotheses, edit, run `pytest`, read `git diff`. Your job is not to repeat any of that
+by hand. It is to decide whether the chain of evidence actually justifies the claim.
 
 ---
 

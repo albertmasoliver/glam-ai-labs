@@ -69,7 +69,7 @@ If the first command passes, your environment is good.
 | 01 | first contact | MANUAL |
 | 02 | the five jobs | the fix transfers to the handler nobody named; frozen files unchanged |
 | 03 | driving the session | MANUAL |
-| 04 | the cabin | package imports, tests pass without touching disk, storage injected |
+| 04 | auditing the evidence | the weakened assertion is strict again; the untested input no longer crashes |
 | 05 | project memory | `CLAUDE.md` short and complete; one scoped rule parses |
 | 06 | permissions | `settings.json` parses; `.env` **and variants** denied |
 | 07 | skills and hooks | `SKILL.md` frontmatter survives YAML; hook exits 0 without its tool |
@@ -84,6 +84,7 @@ is a discussion with nothing to build.
 
 ## What the verifier cannot do
 
-It can tell you a `trainer/` package exists and its tests pass. It cannot tell you
-whether you understood why the seam matters, and the seam is the point of lab 04.
-The `MANUAL` definitions of done carry that weight, and they are not decoration.
+It can tell you the broken links in lab 04's evidence chain are repaired. It cannot
+tell you whether you would have found them unprompted, and finding them unprompted is
+the point. The `MANUAL` definitions of done carry that weight, and they are not
+decoration.
