@@ -1730,6 +1730,20 @@ def lab07(d):
 # lab 08 -- what a capability costs
 # --------------------------------------------------------------------------
 
+def _seed(lab):
+    """Write the little database if it is not there.
+
+    It is generated, never committed, so a fresh clone arrives without it. The
+    student runs seed.py; running it here too means the reference answer checks
+    out and passes on a machine that has never seen this lab.
+    """
+    script = lab / "seed.py"
+    if not script.exists():
+        return False
+    run([sys.executable, str(script)], cwd=lab, timeout=60)
+    return (lab / "library.db").exists()
+
+
 NONCE_TITLE = "Aurora Interstice"          # invented here, at run time
 NONCE_AUTHOR = "Wren Calloway"
 
@@ -1806,8 +1820,9 @@ def lab08(d):
     server = d / "mcp_server.py"
     if not server.exists():
         server = ROOT / "exercises" / "lab08_mcp" / "mcp_server.py"
-    if not (server.parent / "library.db").exists():
-        bad.append("library.db is not there -- run python3 seed.py")
+    if not (server.parent / "library.db").exists() and not _seed(server.parent):
+        bad.append("library.db is not there and seed.py did not write it -- the server "
+                   "has nothing to read")
     else:
         replies, stderr = _server_answers(server)
         if 1 not in replies:
