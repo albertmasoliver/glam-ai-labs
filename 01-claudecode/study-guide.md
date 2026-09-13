@@ -16,6 +16,8 @@ fixtures, and the verifier are this repo's.
 
 ## 0. Three scales, and why the middle one matters
 
+**Lab 00.** Two projects of the same size on different scales. Measure both, then find what the measurements missed.
+
 A useful way to size work before you start:
 
 - a **doghouse** — one file, no tests, no users but you. Mistakes cost minutes.
@@ -146,7 +148,7 @@ nothing. People mix the two constantly and then complain the tool is too agreeab
 
 ## 3. Driving the session
 
-**Lab 03.** Run `/context` before and after a piece of work. Clear once, on purpose.
+**Lab 03.** Measure the window against an estimate, then pollute it on purpose and watch the answers degrade with space to spare.
 
 Context is the budget you are actually spending. Every file read, every tool result,
 every one of your own turns stays in it, and turn fifty carries turns one through
@@ -281,7 +283,9 @@ by hand. It is to decide whether the chain of evidence actually justifies the cl
 
 ## 5. Project memory
 
-**Lab 05.** Write `CLAUDE.md` by hand, then have it reviewed. Then scope one rule.
+**Lab 05.** Write `CLAUDE.md` by hand, then have it reviewed. Scope one rule. Then
+put a third instruction somewhere that refuses, and measure which of the three you
+were actually obeyed on.
 
 `CLAUDE.md` is prepended to every session in the project. That is the whole design,
 and both of its consequences follow from it.
@@ -365,6 +369,8 @@ trust.)
 ## 7. Skills and hooks
 
 **Lab 07.** Write a skill that reports coverage gaps, and a hook that formats Python.
+Then break the description on purpose and watch the routing stop, and build the gate
+that refuses an edit rather than reporting it afterwards.
 
 The distinction decides which one you should be writing:
 
@@ -409,7 +415,8 @@ does not have your linter installed. So:
 
 ## 8. Where the leverage actually is
 
-No lab. A discussion, and the reason the numbering skips 08.
+**Lab 08.** Connect an MCP server, read what it costs, then do the same job with a
+command and a skill and read that.
 
 By this point you have a tool that edits files, remembers your conventions, respects
 a fence and runs procedures. The instinct is to reach for more automation. The
@@ -425,11 +432,21 @@ So the leverage is in the parts that are cheap to write and expensive to skip: t
 spec (§10), the review (§11), and the orientation (§12). Everything else is speed on
 work you had already decided to do.
 
+Which is why the lab here is a protocol you probably do not need. MCP is the right
+answer when Claude has to reach a system it genuinely cannot otherwise reach — a
+service another team owns, a live database, an API with a schema that changes under
+you. It is the wrong answer when a local command would have done, and the cost is
+not hypothetical: every tool definition is resident in the window for the whole
+session, paid for on every turn, used or not. The lab has you measure both and
+decide with the numbers in front of you. Most of the time the answer is the smaller
+thing, and knowing *why* is worth more than the reflex.
+
 ---
 
 ## 9. Subagents and parallel work
 
-**Lab 09.** Review a change with a subagent you wrote.
+**Lab 09.** Review a change with a subagent you wrote, with `/context` read either
+side of both rounds — and triage what comes back, rejecting at least one finding.
 
 A subagent is **a fresh context with a narrow job and a reporting contract.**
 
@@ -459,13 +476,37 @@ condition**, or you get two agents editing the same file and one of them losing.
 (Ch. 8 has a full worked anti-example of exactly that.)
 
 Two lenses is not two opinions. It is two coverage areas, and neither covers
-everything — so the last step of the lab is saying what the review missed.
+everything — so one step of the lab is saying what the review missed.
+
+**Three costs, and only the first is obvious.**
+
+- **Tokens.** The subagent opens the same files, and pays for a fresh system prompt
+  and a fresh tool list on top. The total goes up, not down; what changes is *where*
+  the tokens are spent. You moved a cost out of your window. You did not take it off
+  the bill.
+- **Coordination.** Someone has to write the brief. A thin brief comes back as a
+  confident answer to a question you did not ask.
+- **Verification.** The report arrives with no working shown, and every line of it is
+  a claim until you check it. This is the cost that does not shrink when you delegate,
+  and the one nobody budgets for.
+
+Which is why the second half of lab 09 is a measurement rather than an argument. You
+survey a package you have never opened twice — once in the main session, once through
+the subagent you just wrote — with a `/context` reading on each side of both rounds.
+The four numbers subtract to a saving you write down even when it comes out at zero,
+which is the more interesting result and the one worth trusting, because nobody
+re-runs a measurement until it looks worse. Then you paste the report through
+`triage.py`, which splits it into numbered findings, and mark every one accept or
+reject with a reason under it. At least one of them is wrong: a reviewer that read the
+code and not the docstring beside it is confidently wrong in exactly the register that
+reads like being right. Catching that one is what verification costs, and paying it on
+purpose beats discovering the bill later.
 
 ---
 
 ## 10. From a prompt to a pull request
 
-**Lab 10.** Write a spec an agent can be held to.
+**Lab 10.** Cut an eight-bullet issue down to one slice, write the contract, and let a gate tell you which lines are still only sentences.
 
 The move that makes this work is **narrowing first**. A backlog item is not a task;
 it is a heading. Before anything gets written, cut it to one slice with an obvious

@@ -37,7 +37,7 @@ bash exercises/lab12_landing/make-history.sh
 ## Check it works before you start
 
 ```bash
-python check.py --solutions      # expect 7 PASS, 5 MANUAL
+python check.py --solutions      # expect 11 PASS, 3 MANUAL
 python check.py                  # your side: TODO everywhere, no errors
 ```
 
@@ -66,21 +66,24 @@ If the first command passes, your environment is good.
 
 | | Lab | Verified by |
 |---|---|---|
+| 00 | the three scales | both fixtures placed with reasons; `scales.py` measures something that is not a size |
 | 01 | first contact | MANUAL |
 | 02 | the five jobs | the fix transfers to the handler nobody named; frozen files unchanged |
-| 03 | driving the session | MANUAL |
+| 03 | the window, measured | the readings agree with each other and with the estimate |
 | 04 | auditing the evidence | the weakened assertion is strict again; the untested input no longer crashes |
-| 05 | project memory | `CLAUDE.md` short and complete; one scoped rule parses |
+| 05 | project memory | `CLAUDE.md` short and complete; one scoped rule parses; the hook the checker runs refuses `lines.py` and nothing else; the compliance table adds up |
 | 06 | permissions | `settings.json` parses; `.env` **and variants** denied |
-| 07 | skills and hooks | `SKILL.md` frontmatter survives YAML; hook exits 0 without its tool |
-| 09 | subagents | agent file with frontmatter, tool list, reporting contract |
-| 10 | prompt to pull request | MANUAL |
+| 07 | skills and hooks | `SKILL.md` frontmatter survives YAML; routing recorded in three states; the PreToolUse gate exits 2 on annotated source |
+| 08 | what a capability costs | the MCP server completes a handshake and answers; both context readings recorded |
+| 09 | subagents | agent file with frontmatter, tool list, reporting contract; the two rounds subtract to the saving claimed; one finding rejected with a reason |
+| 10 | the contract and the gate | four contract sections; `pr_gate.py` green over the tests they name |
 | 11 | review and recovery | MANUAL |
 | 12 | landing in a codebase | fixture intact; `ORIENTATION.md` records what you checked |
 | 13 | when not to use it | MANUAL |
 
-There is no lab 08: the numbering follows the study guide's sections, and section 8
-is a discussion with nothing to build.
+Lab 08 used to be missing, because the study guide's section 8 is a discussion with
+nothing to build. The published deck gives module 8 to MCP, which has plenty to
+build, so 08 is now the MCP lab and the numbering finally runs without a gap.
 
 ## What the verifier cannot do
 

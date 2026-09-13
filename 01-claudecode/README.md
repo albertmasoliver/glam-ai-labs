@@ -1,6 +1,6 @@
 # 01 · Claude Code — working with an agentic coding tool
 
-A one-day lab set: **twelve hands-on labs** with a `check.py` verifier over the
+A one-day lab set: **fourteen hands-on labs** with a `check.py` verifier over the
 artifacts they produce, plus a printable **study guide**.
 
 - **Study guide (read / print):** [`study-guide.pdf`](study-guide.pdf) — the ideas,
