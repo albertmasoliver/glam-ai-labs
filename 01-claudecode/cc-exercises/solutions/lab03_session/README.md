@@ -1,7 +1,7 @@
 # Lab 03 — the window, measured
 
 A directory of three files in `sample/`, and a tool that guesses what they cost.
-Ten minutes. You will end up with two numbers you measured yourself and one
+Twenty-five minutes: the four /context readings are what costs, not the writing. You will end up with two numbers you measured yourself and one
 failure mode you caused on purpose.
 
 ```bash

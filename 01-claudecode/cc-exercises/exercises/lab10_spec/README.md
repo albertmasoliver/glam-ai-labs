@@ -1,7 +1,7 @@
 # Lab 10 — the contract and the gate
 
 An issue that is not a task, a cart that already works, and a gate that reads your
-contract back to you. Fifteen minutes.
+contract back to you. Thirty-five minutes. It is the longest in the set and it is the one that looks most like the job.
 
 ```bash
 python3 -m pytest -q     # 6 passing

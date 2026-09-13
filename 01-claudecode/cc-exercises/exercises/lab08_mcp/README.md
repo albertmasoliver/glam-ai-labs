@@ -2,7 +2,7 @@
 
 A whole MCP server, in one file, with no dependencies and nothing to leak:
 `mcp_server.py` speaks JSON-RPC over stdin and stdout and answers questions about
-a local SQLite shelf of books. Fifteen minutes, and you will connect it, use it,
+a local SQLite shelf of books. Half an hour, most of it in the two session resets the comparison needs, and you will connect it, use it,
 and then find out what it charged you.
 
 ```bash

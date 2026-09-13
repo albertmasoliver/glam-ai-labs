@@ -1,6 +1,6 @@
 # Lab 00 — the three scales
 
-Two small Python projects, in `fixtures/`. Fifteen minutes, and you will not write
+Two small Python projects, in `fixtures/`. Half an hour, and most of it is reading rather than typing, and you will not write
 any application code: the work is measuring, classifying, and then finding out what
 your measurements could not see.
 

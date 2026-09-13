@@ -7,7 +7,7 @@ A subagent is a **fresh context with a narrow job and a reporting contract**. Th
 fresh context is the point: a reviewer that has been watching you write the code
 has already been convinced by your reasoning. One that has not, has not.
 
-Steps 1 to 4 are the file. Steps 5 to 7 are twelve minutes of finding out what the
+Steps 1 to 4 are the file. Steps 5 to 7 are about twenty-five minutes, two of those rounds being whole surveys of finding out what the
 file bought you, on real code, in numbers you take yourself — and that is the half
 that changes what you delegate next week.
 

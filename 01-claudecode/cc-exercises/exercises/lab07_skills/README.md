@@ -88,65 +88,12 @@ you actually typed. Paste what you ended up with into `ROUTING.md`. The check
 compares it against the description that is live in `SKILL.md`, because a record of
 a state you have since edited away is not a record.
 
-## Part 4 — a hook that can say no
-
-Part 2 ended on a fact: `PostToolUse` fires after the write has landed and cannot
-take it back. Now use the event that can.
-
-This project has a convention it has never been able to enforce: **no type hints
-anywhere in the fixture code.** Read `trainer/navigation.py` and you will not find
-one. The rule lives in review comments, which is exactly why it keeps getting
-broken — everyone's editor adds annotations on save, and nobody notices until the
-diff is already open.
-
-```text
-Write a PreToolUse hook that refuses any Write or Edit which would put type
-annotations into a .py file in this project.
-
-Pure Python, standard library only, no jq: read the hook event from stdin with
-the json module, and parse the proposed source with ast. Look at AnnAssign, at
-every arg.annotation, and at FunctionDef.returns. Write carries the whole file
-in tool_input.content and Edit carries only the replacement in
-tool_input.new_string, so handle both.
-
-Exit 2 with the file and the line number on stderr when it finds one. Exit 0
-for anything that is not a .py file, and exit 0 for source that does not parse.
-
-Put the script in .claude/hooks/ and wire it into .claude/settings.json as a
-PreToolUse hook matching Write|Edit.
-```
-
-Three of those requirements carry the weight. **Exit 2 is the only code that stops
-the tool call** — 0 is approval and 1 is a warning nothing acts on. **Whatever goes
-to stderr is what Claude is told**, so a silent exit 2 reads as a broken tool and
-gets retried rather than fixed. And **exit 0 on source that does not parse**,
-because a gate that treats a half-written file as a violation blocks every
-intermediate save; someone then turns hooks off, and you are guarding nothing at
-all.
-
-Then make it fire:
-
-```text
-Add type hints to normalize_index in trainer/navigation.py.
-```
-
-The refusal is not the interesting part. What Claude does with the sentence you put
-on stderr is.
-
-> Kousen's ch. 6 has a hook of his own; that example is his and is not reproduced
-> here. Write yours from the requirements above.
-
 ## Done when
 
-`python check.py lab07` passes: the `SKILL.md` frontmatter parses and the
-description survives YAML intact, `ROUTING.md` carries the question you typed and
-records three states with a negative result in the middle, quoting the whole
-description that is actually live, the formatter hook exits 0 with `ruff` off the
-PATH, and the PreToolUse gate exits 2 on annotated source and 0 on everything it
-was never asked to judge — checked by running it against real hook events in a
-scratch copy, not by reading it. The wiring is read the same way: the check looks
-for the `settings.json` entry whose command resolves to the gate on disk, and reads
-that entry's matcher.
+`python check.py lab07` passes: the `SKILL.md` frontmatter parses and its description
+survives YAML intact and names its trigger, the formatter hook exits 0 when `ruff` is
+off the PATH, and `ROUTING.md` records the same question asked of three states of one
+description, with the winning description pasted in full.
 
 ## One honest caveat
 

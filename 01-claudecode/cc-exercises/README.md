@@ -73,13 +73,19 @@ If the first command passes, your environment is good.
 | 04 | auditing the evidence | the weakened assertion is strict again; the untested input no longer crashes |
 | 05 | project memory | `CLAUDE.md` short and complete; one scoped rule parses; the hook the checker runs refuses `lines.py` and nothing else; the compliance table adds up |
 | 06 | permissions | `settings.json` parses; `.env` **and variants** denied |
-| 07 | skills and hooks | `SKILL.md` frontmatter survives YAML; routing recorded in three states; the PreToolUse gate exits 2 on annotated source |
+| 07 | skills and hooks | `SKILL.md` frontmatter survives YAML; routing recorded in three states; the formatter exits 0 without its tool |
 | 08 | what a capability costs | the MCP server completes a handshake and answers; both context readings recorded |
-| 09 | subagents | agent file with frontmatter, tool list, reporting contract; the two rounds subtract to the saving claimed; one finding rejected with a reason |
+| 09 | subagents | agent file with frontmatter, tool list, reporting contract; the two rounds subtract to the saving claimed; one finding rejected |
 | 10 | the contract and the gate | four contract sections; `pr_gate.py` green over the tests they name |
 | 11 | review and recovery | MANUAL |
 | 12 | landing in a codebase | fixture intact; `ORIENTATION.md` records what you checked |
 | 13 | when not to use it | MANUAL |
+
+Some of what these labs ask for cannot be graded by a program, and the checker says
+so rather than pretending. Where a lab's deliverable is a reading — a paragraph, a
+verdict, a reason — the criteria are printed under **NOT GRADED, and yours to judge**
+and left to you. Every gate that was built over prose was defeated by the same word
+repeated, which is the argument for printing them rather than scoring them.
 
 Lab 08 used to be missing, because the study guide's section 8 is a discussion with
 nothing to build. The published deck gives module 8 to MCP, which has plenty to

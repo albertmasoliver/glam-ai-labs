@@ -4,7 +4,7 @@ A small trainer app with a tested core, and no `CLAUDE.md`. Every session starts
 that storage is injected, that there are no dependencies, that `cli.py` holds no
 rules — and half the time it rediscovers it wrong.
 
-Two halves. Writing the file is the first and takes about ten minutes. The second
+Two halves. Writing the file is the first and takes about about twenty-five minutes, because three fresh sessions cannot be hurried. The second
 is fifteen, and it is the one that changes your mind: you put three instructions in
 three different homes and then measure whether each one actually holds.
 

@@ -63,7 +63,16 @@ def frontmatter(path):
     raw = parts[1]
     if yaml is None:
         raise ValueError("pyyaml is not installed: pip install -r requirements.txt")
-    meta = yaml.safe_load(raw)
+    try:
+        meta = yaml.safe_load(raw)
+    except Exception as e:
+        # An unquoted colon in a description is the commonest way this file goes
+        # wrong, and it is a thing lab 07 teaches. Letting the parser's exception
+        # escape turned that lesson into a traceback.
+        first = str(e).strip().splitlines()[0]
+        raise ValueError(f"the frontmatter is not valid YAML ({first}). The usual "
+                         "cause is an unquoted colon in a value -- quote it, or "
+                         "write it as a folded block with >")
     if not isinstance(meta, dict):
         raise ValueError("frontmatter did not parse to a mapping")
     return meta, parts[2], raw
@@ -83,6 +92,20 @@ def template_left(text):
         if " " in inner or "|" in inner:
             return m.group(0)
     return None
+
+
+def yours_to_judge(notes, criteria):
+    """Append the criteria this checker deliberately does not grade.
+
+    Counting the words in a paragraph is not reading it. Every gate built on a
+    word count, a distinct-word ratio or a vocabulary was defeated by filler the
+    first time anyone tried, so those criteria are printed where the student can
+    see them instead of being scored where they cannot. The docstring at the top
+    of this file already said as much; this is that sentence, applied.
+    """
+    if criteria:
+        notes.append("NOT GRADED, and yours to judge:")
+        notes.extend("  " + c for c in criteria)
 
 
 # --------------------------------------------------------------------------
@@ -981,15 +1004,10 @@ def lab05(d):
         elif int(claim.group(1)) != len(obeyed) or int(claim.group(2)) != len(rows):
             bad.append(f"the table shows {len(obeyed)} of {len(rows)} but the line under "
                        f"it claims {claim.group(1)} of {claim.group(2)}")
-        for label, was, instead in rows:
-            if not was and len(instead.split()) < 3:
-                bad.append(f"session {label} says no and stops there -- what it did "
-                           "instead is the part that tells you whether the instruction "
-                           "was ignored or was never relevant")
     request = _field(p1 if p1 is not None else homes, r"request|prompt|asked|repeat")
-    if not request or len(request.split()) < 4:
-        bad.append("the repeated request is not written down, so nobody can tell "
-                   "whether the three sessions were given the same thing")
+    if request is None:
+        bad.append("the repeated request has no line at all, so nobody can tell whether "
+                   "the three sessions were given the same thing")
 
     # ---- 6. proof two: scoped means sometimes ----------------------------
     p2 = _region(homes, r"proof\s*2|scoped")
@@ -1004,9 +1022,9 @@ def lab05(d):
                    "is matching more than you think -- check the glob")
     else:
         notes.append("the scoped rule appears and disappears with its path")
-    trigger = _field(p2 if p2 is not None else homes, r"appear|made it|trigger|loaded it")
-    if not trigger or len(trigger.split()) < 3:
-        bad.append("nothing says what made the rule load -- name the file")
+    if _field(p2 if p2 is not None else homes,
+              r"appear|made it|trigger|loaded it") is None:
+        bad.append("there is no line for what made the rule load")
 
     # ---- 7. proof three: enforcement is not a matter of opinion ----------
     # The claim under test is that the gate refuses one path and nothing else,
@@ -1151,31 +1169,31 @@ def lab05(d):
     if happened is None or _yes(happened) is not False:
         bad.append("the write-up does not say the edit was prevented -- open the file and "
                    "look, rather than taking the transcript's word for it")
-    asked = _field(p3, r"edit i asked|request|asked for|prompt")
-    if not asked or len(asked.split()) < 4:
-        bad.append("the refused request is not written down")
+    if _field(p3, r"edit i asked|request|asked for|prompt") is None:
+        bad.append("the refused request has no line at all")
 
     # ---- 8. did the reason transfer? -------------------------------------
+    # It used to count the words in the closing paragraph and look for a
+    # vocabulary in it. Both were cleared by the same word repeated, which is
+    # the whole reason this section is printed now rather than scored.
     heads = list(re.finditer(r"^##+[^\n]*$", homes, re.M))
     named = [h for h in heads
              if re.search(r"measur|taught|learn|conclu|what i", h.group(0), re.I)]
     anchor = named[-1] if named else (heads[-1] if heads else None)
-    tail = homes[anchor.end():].strip() if anchor else ""
-    vocabulary = {w for w in re.findall(r"[a-z']{3,}", tail.lower())}
-    if len(tail.split()) < 40:
-        bad.append("the closing paragraph is missing or a sentence long -- say which of "
-                   "the three outcomes could have gone the other way, and what that "
-                   "costs the instruction you care about most")
-    elif len(vocabulary) < 20:
-        bad.append(f"the closing paragraph is {len(tail.split())} words of "
-                   f"{len(vocabulary)} distinct ones -- that is a shape, not a reading")
-    elif not re.search(r"guarantee|enforc|mechanism|block|refus|impossible|cannot|"
-                       r"advice|advisor|influenc", tail, re.I):
-        bad.append("the closing paragraph never reaches the distinction it measured: "
-                   "context influences, mechanisms enforce")
+    if not anchor or not homes[anchor.end():].strip():
+        bad.append("nothing is written under the last heading -- the reading is the "
+                   "part of this that is yours")
 
     if bad:
         return FAIL, "Three homes, but the evidence does not hold up.", notes + bad
+    yours_to_judge(notes, [
+        "whether each session row says what it did instead, well enough to tell an "
+        "instruction that was ignored from one that was never relevant",
+        "whether the closing paragraph reaches the distinction you measured -- "
+        "context influences, mechanisms enforce -- or only passes near it",
+        "which of the three outcomes could have gone the other way, and what that "
+        "costs the instruction you care about most",
+    ])
     return PASS, "Short memory, a scoped rule, and a third instruction that refuses.", notes
 
 
@@ -1290,24 +1308,13 @@ def lab07(d):
         if m and ": " in m.group(1) and not m.group(1).strip()[0] in "\"'|>":
             bad.append(f"{name}: the description contains an unquoted colon, so YAML read it "
                        f"as a nested mapping and it truncates at {desc[:40]!r}. Quote it")
-        elif len(desc) < 60:
-            bad.append(f"{name}: the description is {len(desc)} characters. It has to carry "
-                       "both what the skill does and when to use it")
-        elif "when" not in desc.lower():
-            bad.append(f"{name}: the description says what it does but never when to use it")
         else:
-            notes.append(f"{name}: frontmatter parses, description carries its trigger")
-        # The body is the procedure. It is read only after the skill is chosen,
-        # so nothing above this tells you whether there is one.
-        if len(body.strip()) < 200:
-            bad.append(f"{name}: the body is almost empty -- the procedure is the skill")
-        elif not re.search(r"coverage|untested|test|pytest|branch|line", body, re.I):
-            bad.append(f"{name}: the body never mentions tests, coverage or branches. "
-                       "Whatever else it is, it is not the procedure the description "
-                       "promises")
-        elif not (re.search(r"^[ \t]*\d+[.)]", body, re.M) or "`" in body):
-            bad.append(f"{name}: the body has no steps and no commands in it. A skill is "
-                       "a procedure someone can follow, not a description of one")
+            notes.append(f"{name}: frontmatter parses and the description survives it")
+        # Whether the description routes, and whether the body is a procedure, are
+        # both readings. Character counts and a keyword list stood in for them and
+        # were cleared by lorem ipsum with one keyword dropped in.
+        if not body.strip():
+            bad.append(f"{name}: nothing under the frontmatter -- the body is the skill")
 
     if not skills:
         bad.append("no .claude/skills/*/SKILL.md")
@@ -1428,11 +1435,9 @@ def lab07(d):
                                "description gets chosen, which a question that names the "
                                "skill never asks")
 
-            missing = said("generic one was missing", "was missing", "missing")
-            if len(missing.split()) < 12:
-                bad.append("ROUTING.md does not say what the generic description was missing. "
-                           "Name the words in your question that the rewrite matches and "
-                           "`helps with code` does not; that sentence is the finding")
+            if said("generic one was missing", "was missing", "missing") is None:
+                bad.append("ROUTING.md has no line for what the generic description was "
+                           "missing")
 
             quoted = said("rewritten description", "in full")
             quoted_words = content_words(quoted)
@@ -1551,131 +1556,12 @@ def lab07(d):
                                "hook_event_name": event_name, "tool_name": tool,
                                "tool_input": dict(tool_input, file_path=str(path))})
 
-        # ---- 4. and does anything actually say no? --------------------
-        # The gate is graded first: the formatter list below excludes it, so a
-        # Python gate wired alongside a Python formatter is never confused for
-        # one. The findings are reported in the order the README asks for them.
-        gate_notes, gate_bad = [], []
-        cases = [
-            ("annotated Write", 2,
-             event(py, content="def normalize_index(value: int, length: int) -> int:\n    return 0\n")),
-            ("annotated module constant", 2, event(py, content='KEY: str = "line_index"\n')),
-            ("annotated Edit", 2, event(py, old_string="def next(self):",
-                                        new_string='def next(self) -> str:\n    return ""\n')),
-            ("a signature split over several lines", 2,
-             event(py, content="def normalize_index(\n    value: int,\n    length,\n):\n    return 0\n")),
-            ("clean Write", 0, event(py, content="def normalize_index(value, length):\n    return 0\n")),
-            ("an annotation inside a string and a comment", 0,
-             event(py, content='LABEL = "count: int"\n# def parse(value: int) -> int\n'
-                               'def parse(value):\n    return int(value)\n')),
-            ("a file that is not Python", 0,
-             event(work / "README.md", content="def f(x: int) -> int: ...\n")),
-            ("source that does not parse yet", 0, event(py, content="def f(:\n")),
-        ]
-
-        def behaviour(script):
-            """Every case, unless one hangs -- then stop, and say so once.
-
-            A hook that waits for input it will never get would otherwise hold up
-            grading for as many timeouts as there are cases.
-            """
-            out = {}
-            for label, _, payload in cases:
-                r = feed(script, payload, timeout=20)
-                if r is None:
-                    for rest, _, _ in cases:
-                        out.setdefault(rest, (None, ""))
-                    return out
-                out[label] = (r.returncode, (r.stderr or "").strip())
-            return out
-
-        blocker, seen = None, {}
-        for script in candidates:
-            result = behaviour(script)
-            if result.get("annotated Write", (None,))[0] == 2:
-                blocker, seen = script, result
-                break
-            if script in pre and result.get("clean Write", (0,))[0] is None:
-                gate_bad.append(f"{script.name}: wired as PreToolUse and hangs on an ordinary "
-                                "Write. Every matching tool call waits for it")
-
-        if not candidates:
-            gate_bad.append("no PreToolUse gate in .claude/hooks/ -- PostToolUse fires after the "
-                            "write has landed and cannot take it back. A convention you want "
-                            "enforced needs PreToolUse and exit code 2")
-        elif blocker is None:
-            names = ", ".join(p.name for p in candidates)
-            gate_bad.append(f"{names}: fed a PreToolUse event whose content annotates its "
-                            "arguments, nothing exited 2. Exit 0 is approval and exit 1 is a "
-                            "warning; only 2 stops the tool call")
-        else:
-            broken = []
-            hung = [label for label, _, _ in cases if seen.get(label, (None,))[0] is None]
-            if hung:
-                broken.append(f"{blocker.name}: hung on {hung[0]} and never returned. A "
-                              "PreToolUse hook runs before every matching edit, so a hang is "
-                              "not a slow check, it is an outage")
-            for label, want, _ in cases:
-                got = seen.get(label, (None, ""))[0]
-                if got is None:
-                    continue
-                if got != want and want == 2:
-                    broken.append(f"{blocker.name}: exits {got} on {label}, so that one goes "
-                                  "through. An ast walk has to look at AnnAssign, "
-                                  "arg.annotation and FunctionDef.returns, and at new_string "
-                                  "as well as content")
-                elif got != want:
-                    broken.append(f"{blocker.name}: exits {got} on {label}. A gate that refuses "
-                                  "work it was never asked to judge gets switched off within a "
-                                  "day, and then it is guarding nothing")
-            if not hung and not seen["annotated Write"][1]:
-                broken.append(f"{blocker.name}: exits 2 but writes nothing to stderr. Exit 2 "
-                              "hands stderr back to the model as the reason; without it the "
-                              "refusal is indistinguishable from a broken tool")
-            gate_bad += broken
-            if not broken:
-                gate_notes.append(f"{blocker.name}: exit 2 on annotations, exit 0 on clean code, "
-                                  "unparseable source, strings, comments and non-Python files")
-
-            entry, hook_cfg = wiring("PreToolUse", blocker)
-            if not settings.exists():
-                gate_bad.append("no .claude/settings.json -- the script refuses annotated code "
-                                "when you run it by hand, and nothing will ever run it")
-            elif entry is None and wiring("PostToolUse", blocker)[0] is not None:
-                gate_bad.append(f"{blocker.name} is wired as PostToolUse. It exits 2 when "
-                                "you run it by hand, but PostToolUse fires after the write "
-                                "has landed: the annotations are already on disk and the "
-                                "exit code only complains about them")
-            elif not entries_of("PreToolUse"):
-                gate_bad.append("settings.json has no PreToolUse block, so the gate never "
-                                "runs. PostToolUse would report the annotations after they "
-                                "were written")
-            elif entry is None:
-                gate_bad.append(f"settings.json wires a PreToolUse hook, but no command in it "
-                                f"runs {blocker.name} -- naming the file in a comment or an echo "
-                                "leaves the one script that actually refuses unwired")
-            elif hook_cfg.get("type") not in (None, "command"):
-                gate_bad.append(f"the PreToolUse hook that runs {blocker.name} has "
-                                f"type: {hook_cfg.get('type')!r}, and only type: command runs a "
-                                "script")
-            else:
-                head = str(hook_cfg.get("command") or "").split("#", 1)[0].split()
-                if head and head[0].strip("\"'").endswith(blocker.name) \
-                        and not os.access(blocker, os.X_OK):
-                    gate_bad.append(f"{blocker.name} is the command itself and is not "
-                                    "executable (chmod +x), so the hook never starts and "
-                                    "the tool call it was meant to stop goes through")
-                matcher = str(entry.get("matcher", ""))
-                if matcher.strip() in ("*", "") or re.search(r"\b(Write|Edit)\b", matcher):
-                    gate_notes.append(f"PreToolUse runs {blocker.name} on a matcher that selects "
-                                      "Edit and Write")
-                else:
-                    why = (" A matcher is the whole tool name, so NotebookEdit is not Edit."
-                           if re.search(r"Edit|Write", matcher) else "")
-                    gate_bad.append(f"the PreToolUse entry that runs {blocker.name} matches "
-                                    f"{matcher!r}, which does not select Edit or Write, so "
-                                    "the gate watches tool calls that never touch a "
-                                    "file." + why)
+        # Part 4 used to live here: a second hook, this one a PreToolUse gate
+        # that refuses an edit. It came out because lab 05 already has you write
+        # one and watch it refuse, and building a different blocking hook two
+        # labs later is repetition rather than a spiral. What lab 07 owes the
+        # subject is the distinction, and Part 2's prompt asks for that directly.
+        blocker = None
 
         # ---- 5. does the formatter degrade quietly? --------------------
         # Run this after the gate so a Python gate is never mistaken for
@@ -1718,12 +1604,18 @@ def lab07(d):
                        "lands and reports; Part 4's refuses before it. They are two "
                        "scripts on two events, not one")
 
-        notes += gate_notes
-        bad += gate_bad
 
     if bad:
         return FAIL, "Skill or hook is there but not yet correct.", bad
-    return PASS, "Description routes, degrades quietly, and the gate refuses instead of reporting.", notes
+    yours_to_judge(notes, [
+        "whether the description is written the way someone would ask for this out "
+        "loud, or the way you would document it",
+        "whether the body is a procedure a stranger could follow, or a description "
+        "of one",
+        "what the generic description was missing -- name the words in your question "
+        "that the rewrite matches and `helps with code` does not",
+    ])
+    return PASS, "The description routes, and the formatter degrades quietly.", notes
 
 
 # --------------------------------------------------------------------------
@@ -2096,27 +1988,12 @@ def lab09(d):
             notes.append("the saving came out at zero -- the result the lab says is worth "
                          "more than a big one; the tokens were still spent, somewhere else")
 
-    surveyed = re.search(r"\*\*What I surveyed:\*\*\s*(.+?)(?:\n\s*\n|\Z)", text, re.S)
-    if not surveyed or unfilled(surveyed.group(1)) or thin(surveyed.group(1), 5):
-        bad.append("DELEGATION.md never says what was surveyed -- two rounds only compare "
-                   "if they asked the same question of the same files")
-    elif not re.search(r"[`/]|\.py\b", surveyed.group(1)):
-        bad.append("the surveyed sentence names no files -- a directory or a path, so the "
-                   "two rounds can be shown to have read the same thing and not two "
-                   "different things")
-    unsaved = re.search(r"\*\*What delegating did not save:\*\*\s*(.+?)(?:\n\s*\n|\Z)",
-                        text, re.S)
-    if not unsaved or unfilled(unsaved.group(1)) or thin(unsaved.group(1), 10):
-        bad.append("no sentence on what delegating did not save -- the subagent opened the "
-                   "same files and ran the same searches, that work was paid for, and none "
-                   "of it is anywhere in your table")
-    elif not re.search(r"token|read|search|grep|spent|spend|burn|cost|paid|bill|"
-                       r"own context|own window|transcript|again|twice", unsaved.group(1), re.I):
-        bad.append("the sentence about what delegating did not save never names the work "
-                   "that happened out of sight -- it is the same reading, billed somewhere "
-                   "you cannot see it")
-    else:
-        notes.append("the half of the bill that moved out of sight is written down")
+    # What the rounds surveyed, and what the saving did not cover, are prose. A
+    # word count over them is a shape, not a reading, so they are printed below
+    # rather than scored here.
+    for label in ("What I surveyed", "What delegating did not save"):
+        if not re.search(rf"\*\*{label}:\*\*\s*\S", text):
+            bad.append(f"DELEGATION.md has no '{label}' line at all")
 
     # ---- 3. the third cost, which is the one nobody budgets for ----------
     triage = d / "TRIAGE.md"
@@ -2171,39 +2048,16 @@ def lab09(d):
             if not quoted:
                 bad.append(f"finding {number}: nothing quoted under it -- a verdict on a "
                            "claim you did not copy down is a verdict on your memory of it")
-            elif thin(claim, 5):
-                bad.append(f"finding {number}: the quote under it is too short to be a "
-                           "claim -- paste back what the report actually said, or the "
-                           "verdict is on your paraphrase of it and not on the claim")
             if not word:
                 bad.append(f"finding {number}: no verdict, or one that is neither accept "
                            "nor reject")
             else:
                 verdicts.append(word.group(0).lower())
             if not why or unfilled(why.group(1)):
-                bad.append(f"finding {number}: no reason under the verdict -- the reason "
-                           "is the evidence that you checked rather than skimmed")
-                continue
-            # A short reason that names a line beats a long one that names nothing,
-            # so evidence buys the floor down rather than being asked for on top.
-            shown = bool(EVIDENCE.search(why.group(1)))
-            if thin(why.group(1), 5 if shown else 8):
-                bad.append(f"finding {number}: no reason under the verdict -- the reason "
-                           "is the evidence that you checked rather than skimmed")
-                continue
-            if shown:
-                checked += 1
-            elif word and word.group(0).lower() == "reject":
-                bad.append(f"finding {number}: rejected, and the reason names nothing you "
-                           "opened -- a reject is a claim of your own, so it needs the "
-                           "path, the line or the sentence you found there instead")
+                bad.append(f"finding {number}: no reason under the verdict")
         if len(blocks) < 2:
             bad.append("one finding is not a triage -- ask for the whole report back, not "
                        "its headline")
-        elif checked < 2:
-            bad.append("the reasons name nothing you opened -- a path, a line number or "
-                       "the sentence you found there. Verdicts with no file under them "
-                       "are the report agreed with a second time, not checked")
         if verdicts and "reject" not in verdicts:
             bad.append(f"{len(verdicts)} findings and not one rejected. A review you agreed "
                        "with in full is a review you read, not one you checked -- take the "
@@ -2218,6 +2072,15 @@ def lab09(d):
 
     if bad:
         return FAIL, "Delegated and measured, but something in it does not hold up.", notes + bad
+    yours_to_judge(notes, [
+        "whether the two rounds asked the same question of the same files, or only "
+        "look like they did",
+        "whether the sentence on what delegating did not save names the reading that "
+        "happened out of sight, or just asserts that some did",
+        "whether each quote is what the report said, or your memory of it",
+        "whether each reason is evidence you went and checked -- a reject most of "
+        "all, because a reject is a claim of your own",
+    ])
     return PASS, "A contract, two rounds of what it saved, and a report that was checked.", notes
 
 

@@ -369,8 +369,8 @@ trust.)
 ## 7. Skills and hooks
 
 **Lab 07.** Write a skill that reports coverage gaps, and a hook that formats Python.
-Then break the description on purpose and watch the routing stop, and build the gate
-that refuses an edit rather than reporting it afterwards.
+Then break the description on purpose and watch the routing stop — the description is
+the whole interface, and nothing else in the file is read until it matches.
 
 The distinction decides which one you should be writing:
 
