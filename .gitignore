@@ -12,3 +12,4 @@ finetuned-demo/
 # Third-party source materials — never commit (copyright)
 *chapter*.pdf
 Ch*-Ex*.png
+.idea/
